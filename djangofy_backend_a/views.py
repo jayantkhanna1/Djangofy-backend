@@ -277,7 +277,7 @@ def getZip(request):
                 static_backend = request.data["static_backend"]
 
     celery = None
-    if "celery" in request.data:
+    if "celery" in request.data and request.data["celery"] :
         celery = request.data['celery']
 
     ret = startSandbox(request.data,email_backend,mobile_backend,static_backend,celery)
@@ -443,6 +443,13 @@ def github_login(request):
     url = "https://github.com/login/oauth/authorize?client_id="+client_id+"&scope=user,email,repo"
     return Response({"data":"Github login","url":url},status.HTTP_200_OK)
 
+@api_view(['GET'])
+def github_callback(request):
+    code = request.GET.get('code')
+    url = os.environ.get("BASE_URL") + "githubConfirm"
+    r = requests.post(url, data={'code': code})
+    return Response({"data":"Github callback","code":code},status.HTTP_200_OK)
+
 @api_view(['POST'])
 def github_confirm(request):
     try:
@@ -598,5 +605,14 @@ def github_confirm(request):
 - `SmallIntegerField`: `rank = models.SmallIntegerField()`
 - `TextField`: `description = models.TextField()`
 - `TimeField`: `publish_time = models.TimeField()`
+
+'''
+
+
+'''
+in make settings apps are called twice thus resulting in duplicates
+email also made twice
+middleware too
+some loop is running twice for every app check it
 
 '''
