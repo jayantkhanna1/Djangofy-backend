@@ -1,30 +1,23 @@
 class CreateModels:
-    def __init__(self,project_name,apps,models):
-        self.project_name = project_name
+    def __init__(self,project_name,apps):
         self.apps = apps
-        self.models = models
-
-    def getModel(self,app):
-        for x in self.models:
-            if x['app_name'] == app:
-                return x['models']
-        return []
+        self.project_name = project_name
     
     def makeModels(self):
-        # editing models.py in all apps and creating models
-        for app in self.apps:
-            app = app.replace("'","")
-            file = open("sandbox/"+self.project_name + "/" + app + "/models.py","w")
-            file.write("from django.db import models \n")
-            models = self.getModel(app)
-            for x in models:
-                modal_name = x['model_name']
-                fields = x['fields']
-                file.write("class "+modal_name+"(models.Model):\n")
-                for y in fields:
-                    field_name = y['field_name']
-                    field_type = y['field_type']
-                    file.write("    "+field_name+" = "+field_type+"\n")
-            file.close()
-
-        return True
+        try:
+            i=1
+            for x in self.apps:
+                file = open("sandbox/"+self.project_name + "/" + x["app_name_"+str(i)] + "/models.py","w")
+                file.write("from django.db import models \n")
+                for model in x["modals"]:
+                    file.write("class "+model["name"]+"(models.Model):\n")
+                    for field in model["fields"]:
+                        file.write("    "+field["name"]+" = "+field["type"]+"\n")
+                file.close()
+                
+                i+=1
+            return True
+        except Exception as e:
+            print(e)
+            return False
+    

@@ -2,25 +2,28 @@ import textwrap
 textwrap.indent
 
 class CreateSettings:
-    def __init__(self,project_name,apps,database,rest_framework,template_based,models,pip_packages,pagination,page_size):
+    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size):
         self.project_name = project_name
-        self.apps = apps
+        self.apps = []
+        i=1
+        for app in apps:
+            self.apps.append(app["app_name_"+str(i)])
+            i+=1
         self.database = database
         self.rest_framework = rest_framework
         self.template_based = template_based
-        self.models = models
         self.pip_packages = pip_packages
         self.pagination = pagination
         self.page_size = page_size
     
     def checkDatabase(self):
-            if self.database == "sqlite3":
+            if self.database.lower() == "sqlite3":
                 return 1
-            elif self.database == "postgresql":
+            elif self.database.lower() == "postgresql":
                 return 2
-            elif self.database == "mysql":
+            elif self.database.lower() == "mysql":
                 return 3
-            elif self.database == "mongodb":
+            elif self.database.lower() == "mongodb":
                 return 4
             else:
                 return -1

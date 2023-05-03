@@ -3,7 +3,11 @@ import os
 class CreateUrls:
     def __init__(self,project_name,apps):
         self.project_name = project_name
-        self.apps = apps
+        self.apps = []
+        i=1
+        for app in apps:
+            self.apps.append(app["app_name_"+str(i)])
+            i+=1
 
     def makeUrls(self):
         # Editing urls.py file in project

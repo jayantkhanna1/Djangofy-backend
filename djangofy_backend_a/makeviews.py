@@ -1,8 +1,12 @@
 class CreateViews:
-    def __init__(self,project_name,apps,models,rest_framework,pagination):
+    def __init__(self,project_name,apps,rest_framework,pagination):
         self.project_name = project_name
-        self.apps = apps
-        self.models = models
+        self.apps = []
+        i=1
+        for app in apps:
+            self.apps.append(app["app_name_"+str(i)])
+            i+=1
+
         self.rest_framework = rest_framework
         self.pagination = pagination
 
