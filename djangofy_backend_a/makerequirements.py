@@ -24,14 +24,18 @@ class CreateRequirements:
             if self.template_based:
                 req_file.write("Pillow \n")
             
-            if self.database == "postgresql":
+            if self.database.lower() == "postgresql":
                 req_file.write("psycopg2-binary \n")
                 
-            if self.database == "mongodb":
-                req_file.write("djongo \n")
+            if self.database.lower() == "mysql":
+                req_file.write("mysqlclient \n")
+
+            if self.database.lower() == "mongodb":
+                req_file.write("djongo \npymongo")
 
             req_file.close()
             return True
+        
         except Exception as e:
             print(e)
             return False

@@ -92,7 +92,6 @@ class CreateSettings:
                         'PASSWORD': os.getenv('DB_PASSWORD'),
                         'HOST': os.getenv('DB_HOST'),
                         'PORT': int(os.getenv('DB_PORT')),
-
                     }
                 }
                 '''
@@ -104,9 +103,59 @@ class CreateSettings:
                 env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
 
             elif val == 3:
-                pass
+                # Remove database from settings_data
+                settings_data = settings_data.replace(settings_data.split("DATABASES = {")[1].split("}")[0],"")
+                settings_data = settings_data.replace("DATABASES = {}\n}","")
+
+                database_str = '''
+                DATABASES = {
+                    'default': {
+                        'ENGINE': 'django.db.backends.mysql',
+                        'NAME': os.getenv('DB_NAME'),
+                        'USER': os.getenv('DB_USER'),
+                        'PASSWORD': os.getenv('DB_PASSWORD'),
+                        'HOST': os.getenv('DB_HOST'),
+                        'PORT': int(os.getenv('DB_PORT')),
+                    }
+                }
+                '''
+                # Remove extra indent
+                database_str = textwrap.dedent(database_str)
+                settings_data = settings_data + database_str
+                # Add this data to .env file
+                env_file = open("sandbox/"+self.project_name+"/.env","w")
+                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
+
             elif val == 4:
-                pass
+                # Remove database from settings_data
+                settings_data = settings_data.replace(settings_data.split("DATABASES = {")[1].split("}")[0],"")
+                settings_data = settings_data.replace("DATABASES = {}\n}","")
+
+                database_str = '''
+                DATABASES = {
+                    'default': {
+                        'ENGINE': 'djongo',
+                        'NAME': os.getenv('DB_NAME'),
+                        'ENFORCE_SCHEMA': False,
+                        'CLIENT': {
+                            'host': os.getenv('DB_HOST'),
+                            'port': int(os.getenv('DB_PORT')),
+                            'username': os.getenv('DB_USER'),
+                            'password': os.getenv('DB_PASSWORD'),
+                            'authSource': os.getenv('DB_NAME'),
+                            'authMechanism': 'SCRAM-SHA-256'
+                        }
+                    }
+                }
+                '''
+
+                # Remove extra indent
+                database_str = textwrap.dedent(database_str)
+                settings_data = settings_data + database_str
+                
+                # Add this data to .env file
+                env_file = open("sandbox/"+self.project_name+"/.env","w")
+                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
 
 
         if self.rest_framework and self.pagination:
