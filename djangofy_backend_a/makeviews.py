@@ -1,5 +1,5 @@
 class CreateViews:
-    def __init__(self,project_name,apps,rest_framework,pagination):
+    def __init__(self,project_name,apps,rest_framework,pagination,email_backend,mobile_backend,static_backend):
         self.project_name = project_name
         self.apps = []
         i=1
@@ -9,6 +9,9 @@ class CreateViews:
 
         self.rest_framework = rest_framework
         self.pagination = pagination
+        self.email_backend = email_backend
+        self.mobile_backend = mobile_backend
+        self.static_backend = static_backend
 
     def makeViews(self):
         # Editing views.py file in all apps
@@ -38,6 +41,16 @@ class CreateViews:
             
             if self.pagination:
                 file.write("from rest_framework import pagination\n")
+
+            if self.email_backend:
+                file.write("from django.core.mail import send_mail\n")
+                if self.email_backend.lower() == "sendgrid":
+                    file.write("from sendgrid import SendGridAPIClient\n")
+                    file.write("from sendgrid.helpers.mail import Mail\n")
+            
+            if self.mobile_backend:
+                file.write("from twilio.rest import Client\n")
+                
 
             file.write("\n")
             file.close()

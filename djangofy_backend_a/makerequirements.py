@@ -1,10 +1,14 @@
 class CreateRequirements:
-    def __init__(self,project_name,pip_packages,rest_framework,template_based,database):
+    def __init__(self,project_name,pip_packages,rest_framework,template_based,database,email_backend,mobile_backend,static_backend):
         self.project_name = project_name
         self.pip_packages = pip_packages
         self.rest_framework = rest_framework
         self.template_based = template_based
         self.database = database
+        self.email_backend = email_backend
+        self.mobile_backend = mobile_backend
+        self.static_backend = static_backend
+
 
     def makeRequirements(self):
         try:
@@ -32,6 +36,19 @@ class CreateRequirements:
 
             if self.database.lower() == "mongodb":
                 req_file.write("djongo \npymongo")
+            
+            if self.email_backend and self.email_backend.lower() == "sendgrid":
+                req_file.write("sendgrid \n")
+            
+            if self.mobile_backend:
+                req_file.write("twilio \n")
+
+            if self.static_backend:
+                if self.static_backend.lower() == "aws":
+                    req_file.write("django-storages \nboto3 \n")
+        
+            
+
 
             req_file.close()
             return True

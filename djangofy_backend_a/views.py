@@ -43,6 +43,10 @@ def createAllFiles(project_name,apps,rest_app):
         req_file = open("sandbox/"+project_name+"/requirements.txt","w")
         req_file.close()
 
+        # Creating a Readme.md file
+        req_file = open("sandbox/"+project_name+"/Readme.md","w")
+        req_file.close()
+
         # Creating a serializers.py file in apps if rest_framework is true
         i = 1
         if rest_app:
@@ -65,13 +69,15 @@ def createAllFiles(project_name,apps,rest_app):
         print(e)
         return False  
 
-def startSandbox(data):
+def startSandbox(data,email_backend,mobile_backend,static_backend):
+
     # Getting data
     project_name = data['project_name']
     apps = data['apps']
     database = data['database']
     rest_app = data['rest_app']
     template_based = data['template_based']
+
     # pip_packages = data['pip_packages']
     if "pip_packages" in data:
         pip_packages = data['pip_packages']
@@ -84,24 +90,25 @@ def startSandbox(data):
             page_size = data['page_size']
         else:
             page_size = 0
-    
+            
+
     # Creating all required files
     ret = createAllFiles(project_name,apps,rest_app)
     if not ret:
         return False
     
     # Editing settings.py file
-    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size)
+    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend)
     ret = settings.makeSettings()
 
     # Editing urls.py file in project and apps
-    urls = CreateUrls(project_name,apps)
+    urls = CreateUrls(project_name,apps,template_based)
     ret = urls.makeUrls()
     if not ret:
         return False
     
     # Adding data to views.py file in apps
-    views = CreateViews(project_name,apps,rest_app,pagination)
+    views = CreateViews(project_name,apps,rest_app,pagination,email_backend,mobile_backend,static_backend)
     ret = views.makeViews()
     if not ret:
         return False
@@ -126,11 +133,14 @@ def startSandbox(data):
         return False
     
     # Making requirements
-    req = CreateRequirements(project_name,pip_packages,rest_app,template_based,database)
+    req = CreateRequirements(project_name,pip_packages,rest_app,template_based,database,email_backend,mobile_backend,static_backend)
     ret = req.makeRequirements()
     if not ret:
         return False
     
+    # Making documentation
+
+
     return True
 
 # Create your views here.
@@ -153,7 +163,42 @@ def getZip(request):
             if not "page_size" in request.data:
                 return Response({"data":"page_size not present"},status.HTTP_400_BAD_REQUEST)
     
-    ret = startSandbox(request.data)
+    email_backend = None
+    if "email" in request.data:
+        email = request.data['email']
+        if email:
+            if "email_backend" not in request.data:
+                return Response({"data":"email_backend not present"},status.HTTP_400_BAD_REQUEST)
+            elif request.data["email_backend"] == None:
+                return Response({"data":"email_backend not present"},status.HTTP_400_BAD_REQUEST)
+            else:
+                email_backend = request.data["email_backend"]
+    
+    mobile_backend = None
+    if "mobile" in request.data:
+        mobile = request.data['mobile']
+        if mobile:
+            if "mobile_backend" not in request.data:
+                return Response({"data":"mobile_backend not present"},status.HTTP_400_BAD_REQUEST)
+            elif request.data["mobile_backend"] == None:
+                return Response({"data":"mobile_backend not present"},status.HTTP_400_BAD_REQUEST)
+            else:
+                mobile_backend = request.data["mobile_backend"]
+
+    static_backend = None
+    if "static" in request.data:
+        static = request.data['static']
+        if static:
+            if "static_backend" not in request.data:
+                return Response({"data":"static_backend not present"},status.HTTP_400_BAD_REQUEST)
+            elif request.data["static_backend"] == None:
+                return Response({"data":"static_backend not present"},status.HTTP_400_BAD_REQUEST)
+            else:
+                static_backend = request.data["static_backend"]
+
+    # Also attach celery
+
+    ret = startSandbox(request.data,email_backend,mobile_backend,static_backend)
     if ret:
         # make a zip of project then remove that project from sandbox and send that zip file
         output_filename = "zipsandbox/"+request.data['project_name']
@@ -163,7 +208,7 @@ def getZip(request):
         output_filename = output_filename+".zip"
         zip_file = open(output_filename, 'rb')
         zip_file.close()
-        print(output_filename)
+
         # Uploading zip to Hugging face
         api = HfApi()
         repo_id = os.environ.get("REPO_ID")

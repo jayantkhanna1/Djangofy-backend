@@ -2,7 +2,7 @@ import textwrap
 textwrap.indent
 
 class CreateSettings:
-    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size):
+    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend):
         self.project_name = project_name
         self.apps = []
         i=1
@@ -15,6 +15,9 @@ class CreateSettings:
         self.pip_packages = pip_packages
         self.pagination = pagination
         self.page_size = page_size
+        self.email_backend = email_backend
+        self.mobile_backend = mobile_backend
+        self.static_backend = static_backend
     
     def checkDatabase(self):
             if self.database.lower() == "sqlite3":
@@ -67,10 +70,38 @@ class CreateSettings:
 
         # For static and media
         if self.template_based:
-            settings_data = settings_data.replace("'DIRS': [],","'DIRS': [os.path.join(BASE_DIR, 'templates')],")
-            static_and_media_string = "\nSTATIC_URL = '/static/'\nSTATIC_ROOT = os.path.join(BASE_DIR, 'static/')" + "\nMEDIA_URL = '/media/'\nMEDIA_ROOT = os.path.join(BASE_DIR, 'media/')"
-            settings_data = settings_data.replace("STATIC_URL = '/static/'",static_and_media_string)
-            settings_data = settings_data.replace("STATIC_URL = 'static/'",static_and_media_string)
+            if self.static_backend == "aws":
+                aws_str = '''
+                
+                    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID'),
+                    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY'),
+                    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME'),
+                    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME'),
+
+                    # Use S3 for static and media files
+                    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+                    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+                    # Set S3 bucket URL for static files
+                    AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+                    # Set static and media URLs
+                    STATIC_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, 'static')
+                    MEDIA_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, 'media')
+                '''
+                settings_data = settings_data.replace("STATIC_URL = '/static/'",textwrap.dedent(aws_str))
+                settings_data = settings_data.replace("STATIC_URL = 'static/'",textwrap.dedent(aws_str))
+
+                # Add this data to .env file
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("AWS_ACCESS_KEY_ID='' \nAWS_SECRET_ACCESS_KEY='' \nAWS_STORAGE_BUCKET_NAME='' \nAWS_S3_REGION_NAME=''")
+
+            else:
+                settings_data = settings_data.replace("'DIRS': [],","'DIRS': [os.path.join(BASE_DIR, 'templates')],")
+                static_and_media_string = "\nSTATIC_URL = '/static/'\nSTATIC_ROOT = os.path.join(BASE_DIR, 'static/')" + "\nMEDIA_URL = '/media/'\nMEDIA_ROOT = os.path.join(BASE_DIR, 'media/')"
+                settings_data = settings_data.replace("STATIC_URL = '/static/'",static_and_media_string)
+                settings_data = settings_data.replace("STATIC_URL = 'static/'",static_and_media_string)
+            
 
         # For database also change
         val = self.checkDatabase()
@@ -99,8 +130,8 @@ class CreateSettings:
                 database_str = textwrap.dedent(database_str)
                 settings_data = settings_data + database_str
                 # Add this data to .env file
-                env_file = open("sandbox/"+self.project_name+"/.env","w")
-                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''\n")
 
             elif val == 3:
                 # Remove database from settings_data
@@ -123,8 +154,8 @@ class CreateSettings:
                 database_str = textwrap.dedent(database_str)
                 settings_data = settings_data + database_str
                 # Add this data to .env file
-                env_file = open("sandbox/"+self.project_name+"/.env","w")
-                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''\n")
 
             elif val == 4:
                 # Remove database from settings_data
@@ -154,14 +185,58 @@ class CreateSettings:
                 settings_data = settings_data + database_str
                 
                 # Add this data to .env file
-                env_file = open("sandbox/"+self.project_name+"/.env","w")
-                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''")
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("DB_NAME='' \nDB_USER='' \nDB_PASSWORD='' \nDB_HOST='' \nDB_PORT=''\n")
 
 
         if self.rest_framework and self.pagination:
             rest_framework_string = "\nREST_FRAMEWORK = {\n    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',\n    'PAGE_SIZE': "+str(self.page_size)+"\n}"
             settings_data = settings_data + rest_framework_string
 
+        if self.email_backend is not None:
+            '''
+            
+                EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+                EMAIL_HOST = 'smtp.gmail.com'
+                EMAIL_PORT = 587
+                EMAIL_USE_TLS = True
+                EMAIL_HOST_USER = 'your_gmail_address@gmail.com'
+                EMAIL_HOST_PASSWORD = 'your_gmail_app_password'
+            '''
+            email_str = '''
+
+                EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+                EMAIL_HOST = 'smtp.gmail.com'
+                EMAIL_PORT = os.getenv('EMAIL_PORT')
+                EMAIL_USE_TLS = True
+                EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+                EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+            '''
+
+            # Add this data to .env file
+            env_file = open("sandbox/"+self.project_name+"/.env","a")
+            env_file.write("EMAIL_PORT='' \nEMAIL_HOST_USER='' \nEMAIL_HOST_PASSWORD=''\n")
+
+            # Remove extra indent
+            email_str = textwrap.dedent(email_str)
+            settings_data = settings_data + email_str
+        
+        if self.mobile_backend is not None:
+            mobile_str = '''
+            
+                TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+                TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+                TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+            '''
+
+            # Add this data to .env file
+            env_file = open("sandbox/"+self.project_name+"/.env","a")
+            env_file.write("TWILIO_ACCOUNT_SID='' \nTWILIO_AUTH_TOKEN='' \nTWILIO_PHONE_NUMBER=''\n")
+
+            # Remove extra indent
+            mobile_str = textwrap.dedent(mobile_str)
+            settings_data = settings_data + mobile_str
+            
         # Replace all data in settings.py
         settings_file = open("sandbox/"+self.project_name+"/"+self.project_name+"/settings.py","w")
         settings_file.write(settings_data)
