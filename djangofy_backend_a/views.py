@@ -10,7 +10,8 @@ from .makeserializers import CreateSerializers
 from .makeadmin import CreateAdmin
 from .makerequirements import CreateRequirements
 import shutil
-from django.http import HttpResponse
+from huggingface_hub import HfApi
+import time
 
 
 def createAllFiles(project_name,apps,rest_app):
@@ -161,11 +162,25 @@ def getZip(request):
         shutil.rmtree(dir_name)
         output_filename = output_filename+".zip"
         zip_file = open(output_filename, 'rb')
-        response = HttpResponse(zip_file, content_type='application/zip')
-        response['Content-Disposition'] = 'attachment; filename=file.zip'
-        os.remove(str(output_filename))
-        return response
-        # return Response({"data":"Yes"},status.HTTP_200_OK)
+        zip_file.close()
+        print(output_filename)
+        # Uploading zip to Hugging face
+        api = HfApi()
+        repo_id = os.environ.get("REPO_ID")
+        repo_type = "dataset"
+        folder_path = output_filename
+        path_in_repo = output_filename
+        api.upload_file(
+            path_or_fileobj=folder_path,
+            path_in_repo=path_in_repo,
+            repo_id=repo_id,
+            repo_type=repo_type,
+            token = os.environ.get("HUGGINGFACE_TOKEN")
+        )
+        download_link= "https://huggingface.co/datasets/"+str(repo_id)+"/resolve/main/"+str(path_in_repo)
+        os.remove(output_filename)
+         
+        return Response({"data":"Yes","download_link" : download_link},status.HTTP_200_OK)
     else:
         return Response({"data":"No"},status.HTTP_400_BAD_REQUEST)
 
