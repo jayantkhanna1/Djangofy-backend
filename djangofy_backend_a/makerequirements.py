@@ -46,10 +46,11 @@ class CreateRequirements:
             if self.static_backend:
                 if self.static_backend.lower() == "aws":
                     req_file.write("django-storages \nboto3 \n")
+                if self.static_backend.lower() == "azure":
+                    req_file.write("django-storages \nazure-storage-blob \n")
+                if self.static_backend.lower() == "gcp":
+                    req_file.write("django-storages \ngoogle-cloud-storage \n")
         
-            
-
-
             req_file.close()
             return True
         

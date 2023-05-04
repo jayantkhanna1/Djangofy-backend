@@ -96,6 +96,69 @@ class CreateSettings:
                 env_file = open("sandbox/"+self.project_name+"/.env","a")
                 env_file.write("AWS_ACCESS_KEY_ID='' \nAWS_SECRET_ACCESS_KEY='' \nAWS_STORAGE_BUCKET_NAME='' \nAWS_S3_REGION_NAME=''")
 
+            elif self.static_backend == "azure":
+                azure_data = '''
+                
+                    from storages.backends.azure_storage import AzureStorage
+
+                    # Add the following settings to the end of your file
+                    AZURE_ACCOUNT_NAME = os.getenv('AZURE_ACCOUNT_NAME')
+                    AZURE_ACCOUNT_KEY = os.getenv('AZURE_ACCOUNT_KEY')
+                    AZURE_CONTAINER = os.getenv('AZURE_CONTAINER')
+
+                    # Use the AzureStorage backend for static and media files
+                    STATICFILES_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+                    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+
+                    # Set the location of the static and media files in the container
+                    AZURE_LOCATION = 'static'
+                    STATIC_LOCATION = 'static'
+                    MEDIA_LOCATION = 'media'
+
+                    # Set the URL of the container
+                    AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
+                    STATIC_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_LOCATION}/'
+                    MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
+                '''
+                settings_data = settings_data.replace("STATIC_URL = '/static/'",textwrap.dedent(azure_data))
+                settings_data = settings_data.replace("STATIC_URL = 'static/'",textwrap.dedent(azure_data))
+
+                # Add this data to .env file
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("AZURE_ACCOUNT_NAME='' \nAZURE_ACCOUNT_KEY='' \nAZURE_CONTAINER=''")
+            
+            elif self.static_backend == "gcp":
+                gcp_data = '''
+
+                    from storages.backends.gcloud import GoogleCloudStorage
+
+                    # Add the following settings to the end of your file
+                    GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME')
+                    GS_PROJECT_ID = os.getenv('GS_PROJECT_ID')
+                    GS_CREDENTIALS = os.getenv('GS_CREDENTIALS', None)
+                    GS_AUTO_CREATE_BUCKET = True
+
+                    # Use the GoogleCloudStorage backend for static and media files
+                    STATICFILES_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+                    DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+
+                    # Set the location of the static and media files in the bucket
+                    GS_LOCATION = 'static'
+                    STATIC_LOCATION = 'static'
+                    MEDIA_LOCATION = 'media'
+
+                    # Set the URL of the bucket
+                    GS_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
+                    STATIC_URL = f'{GS_URL}{STATIC_LOCATION}/'
+                    MEDIA_URL = f'{GS_URL}{MEDIA_LOCATION}/'
+                '''
+                settings_data = settings_data.replace("STATIC_URL = '/static/'",textwrap.dedent(gcp_data))
+                settings_data = settings_data.replace("STATIC_URL = 'static/'",textwrap.dedent(gcp_data))
+
+                # Add this data to .env file
+                env_file = open("sandbox/"+self.project_name+"/.env","a")
+                env_file.write("GS_BUCKET_NAME='' \nGS_PROJECT_ID='' \nGS_CREDENTIALS=''")
+                
             else:
                 settings_data = settings_data.replace("'DIRS': [],","'DIRS': [os.path.join(BASE_DIR, 'templates')],")
                 static_and_media_string = "\nSTATIC_URL = '/static/'\nSTATIC_ROOT = os.path.join(BASE_DIR, 'static/')" + "\nMEDIA_URL = '/media/'\nMEDIA_ROOT = os.path.join(BASE_DIR, 'media/')"

@@ -204,7 +204,7 @@ def getZip(request):
         output_filename = "zipsandbox/"+request.data['project_name']
         dir_name = "sandbox/"+request.data['project_name']
         shutil.make_archive(output_filename, 'zip', dir_name)
-        shutil.rmtree(dir_name)
+        # shutil.rmtree(dir_name)
         output_filename = output_filename+".zip"
         zip_file = open(output_filename, 'rb')
         zip_file.close()
