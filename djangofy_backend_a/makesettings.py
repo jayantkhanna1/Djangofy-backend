@@ -2,7 +2,7 @@ import textwrap
 textwrap.indent
 
 class CreateSettings:
-    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend):
+    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery):
         self.project_name = project_name
         self.apps = []
         i=1
@@ -18,6 +18,7 @@ class CreateSettings:
         self.email_backend = email_backend
         self.mobile_backend = mobile_backend
         self.static_backend = static_backend
+        self.celery = celery
     
     def checkDatabase(self):
             if self.database.lower() == "sqlite3":
@@ -30,6 +31,44 @@ class CreateSettings:
                 return 4
             else:
                 return -1
+
+    def create_celery_file(self):
+
+        celery_str = '''
+            import os
+            from celery import Celery
+
+            # Set the default Django settings module
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', \''''+ self.project_name+'''.settings\')
+            # Create the Celery app
+            app = Celery(\''''+ self.project_name+'''\')
+            # Load the Celery config from the Django settings
+            app.config_from_object('django.conf:settings', namespace='CELERY')
+            # Discover tasks in all installed Django apps
+            app.autodiscover_tasks()
+            @app.task(bind=True)
+            
+        '''
+
+        file = open("sandbox/"+self.project_name+"/"+self.project_name+"/celery.py","w")
+        file.write(textwrap.dedent(celery_str))
+        attach_to_celery_file = '''
+def debug_task(self):
+    print(f'Request: { self.request!r}') 
+        '''
+        file.write(attach_to_celery_file)
+        file.close()
+
+        # Making tasks.py
+        for app in self.apps:
+            app = app.replace("'","")
+            file = open("sandbox/"+self.project_name+"/"+str(app)+"/tasks.py","w")
+            tasks_str = '''
+            from celery import shared_task
+            '''
+            file.write(textwrap.dedent(tasks_str))
+            file.close()
+
 
     def makeSettings(self):
         settings_file = open("sandbox/"+self.project_name+"/"+self.project_name+"/settings.py","r")
@@ -158,7 +197,7 @@ class CreateSettings:
                 # Add this data to .env file
                 env_file = open("sandbox/"+self.project_name+"/.env","a")
                 env_file.write("GS_BUCKET_NAME='' \nGS_PROJECT_ID='' \nGS_CREDENTIALS=''")
-                
+
             else:
                 settings_data = settings_data.replace("'DIRS': [],","'DIRS': [os.path.join(BASE_DIR, 'templates')],")
                 static_and_media_string = "\nSTATIC_URL = '/static/'\nSTATIC_ROOT = os.path.join(BASE_DIR, 'static/')" + "\nMEDIA_URL = '/media/'\nMEDIA_ROOT = os.path.join(BASE_DIR, 'media/')"
@@ -299,6 +338,27 @@ class CreateSettings:
             # Remove extra indent
             mobile_str = textwrap.dedent(mobile_str)
             settings_data = settings_data + mobile_str
+        
+        if self.celery:
+            celery_str='''
+            
+                CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
+                CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND')
+                CELERY_ACCEPT_CONTENT = ['application/json']
+                CELERY_TASK_SERIALIZER = 'json'
+                CELERY_RESULT_SERIALIZER = 'json'
+            '''
+
+            # Add this data to .env file
+            env_file = open("sandbox/"+self.project_name+"/.env","a")
+            env_file.write("CELERY_BROKER_URL='' \nCELERY_RESULT_BACKEND=''\n")
+
+            # Remove extra indent
+            celery_str = textwrap.dedent(celery_str)
+            settings_data = settings_data + celery_str
+
+            self.create_celery_file()
+
             
         # Replace all data in settings.py
         settings_file = open("sandbox/"+self.project_name+"/"+self.project_name+"/settings.py","w")

@@ -1,5 +1,5 @@
 class CreateViews:
-    def __init__(self,project_name,apps,rest_framework,pagination,email_backend,mobile_backend,static_backend):
+    def __init__(self,project_name,apps,rest_framework,pagination,email_backend,mobile_backend,static_backend,celery):
         self.project_name = project_name
         self.apps = []
         i=1
@@ -12,6 +12,7 @@ class CreateViews:
         self.email_backend = email_backend
         self.mobile_backend = mobile_backend
         self.static_backend = static_backend
+        self.celery = celery
 
     def makeViews(self):
         # Editing views.py file in all apps
@@ -50,7 +51,10 @@ class CreateViews:
             
             if self.mobile_backend:
                 file.write("from twilio.rest import Client\n")
-                
+            
+            if self.celery:
+                file.write("from .tasks import *\n")
+
 
             file.write("\n")
             file.close()

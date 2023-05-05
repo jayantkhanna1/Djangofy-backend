@@ -69,7 +69,7 @@ def createAllFiles(project_name,apps,rest_app):
         print(e)
         return False  
 
-def startSandbox(data,email_backend,mobile_backend,static_backend):
+def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
 
     # Getting data
     project_name = data['project_name']
@@ -98,7 +98,7 @@ def startSandbox(data,email_backend,mobile_backend,static_backend):
         return False
     
     # Editing settings.py file
-    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend)
+    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery)
     ret = settings.makeSettings()
 
     # Editing urls.py file in project and apps
@@ -108,7 +108,7 @@ def startSandbox(data,email_backend,mobile_backend,static_backend):
         return False
     
     # Adding data to views.py file in apps
-    views = CreateViews(project_name,apps,rest_app,pagination,email_backend,mobile_backend,static_backend)
+    views = CreateViews(project_name,apps,rest_app,pagination,email_backend,mobile_backend,static_backend,celery)
     ret = views.makeViews()
     if not ret:
         return False
@@ -133,7 +133,7 @@ def startSandbox(data,email_backend,mobile_backend,static_backend):
         return False
     
     # Making requirements
-    req = CreateRequirements(project_name,pip_packages,rest_app,template_based,database,email_backend,mobile_backend,static_backend)
+    req = CreateRequirements(project_name,pip_packages,rest_app,template_based,database,email_backend,mobile_backend,static_backend,celery)
     ret = req.makeRequirements()
     if not ret:
         return False
@@ -196,15 +196,17 @@ def getZip(request):
             else:
                 static_backend = request.data["static_backend"]
 
-    # Also attach celery
+    celery = None
+    if "celery" in request.data:
+        celery = request.data['celery']
 
-    ret = startSandbox(request.data,email_backend,mobile_backend,static_backend)
+    ret = startSandbox(request.data,email_backend,mobile_backend,static_backend,celery)
     if ret:
         # make a zip of project then remove that project from sandbox and send that zip file
         output_filename = "zipsandbox/"+request.data['project_name']
         dir_name = "sandbox/"+request.data['project_name']
         shutil.make_archive(output_filename, 'zip', dir_name)
-        # shutil.rmtree(dir_name)
+        shutil.rmtree(dir_name)
         output_filename = output_filename+".zip"
         zip_file = open(output_filename, 'rb')
         zip_file.close()

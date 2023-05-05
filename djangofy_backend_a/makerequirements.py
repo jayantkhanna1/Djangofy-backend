@@ -1,5 +1,5 @@
 class CreateRequirements:
-    def __init__(self,project_name,pip_packages,rest_framework,template_based,database,email_backend,mobile_backend,static_backend):
+    def __init__(self,project_name,pip_packages,rest_framework,template_based,database,email_backend,mobile_backend,static_backend,celery):
         self.project_name = project_name
         self.pip_packages = pip_packages
         self.rest_framework = rest_framework
@@ -8,6 +8,7 @@ class CreateRequirements:
         self.email_backend = email_backend
         self.mobile_backend = mobile_backend
         self.static_backend = static_backend
+        self.celery = celery
 
 
     def makeRequirements(self):
@@ -50,6 +51,10 @@ class CreateRequirements:
                     req_file.write("django-storages \nazure-storage-blob \n")
                 if self.static_backend.lower() == "gcp":
                     req_file.write("django-storages \ngoogle-cloud-storage \n")
+            
+            if self.celery:
+                req_file.write("celery \n")
+                req_file.write("redis \n")
         
             req_file.close()
             return True
