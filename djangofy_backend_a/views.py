@@ -2,6 +2,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import os
+from .models import User 
+from .serializers import UserSerializer
 from .makesettings import CreateSettings
 from .makeurls import CreateUrls
 from .makeviews import CreateViews
@@ -11,9 +13,13 @@ from .makeadmin import CreateAdmin
 from .makerequirements import CreateRequirements
 import shutil
 from huggingface_hub import HfApi
-import time
+import string
+import random
+from django.core.mail import send_mail
 
 
+
+# Helper Functions
 def createAllFiles(project_name,apps,rest_app):
     try:
         os.system("cd sandbox && django-admin startproject "+project_name)
@@ -143,7 +149,8 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
 
     return True
 
-# Create your views here.
+
+# Main Functions
 @api_view(['POST'])
 def getZip(request):
     if not "project_name" in request.data:
@@ -231,8 +238,118 @@ def getZip(request):
     else:
         return Response({"data":"No"},status.HTTP_400_BAD_REQUEST)
 
+@api_view(['POST'])
+def user_signup(request):
+    if "email" not in request.data or "password" not in request.data or "name" not in request.data or "type_of_user" not in request.data:
+        return Response({"data":"email or password or name or type_of_user not present"},status.HTTP_400_BAD_REQUEST)
 
+    email = request.data['email']
+    password = request.data['password']
+    name = request.data['name']
+    type_of_user = request.data['type_of_user']
 
+    if User.objects.filter(email=email).exists():
+        return Response({"data":"User already exists"},status.HTTP_400_BAD_REQUEST)
+    
+    else:
+        otp = str(random.randint(100000,999999))
+        subject = "OTP for signup with Djangofy"
+        message = "Your OTP for signup with Djangofy is "+otp + ". Please do not share this OTP with anyone."
+        mail_to = [email]
+        mail_from = os.environ.get("EMAIL_HOST_USER")
+        send_mail(
+            subject,
+            message,
+            mail_from,
+            mail_to,
+            fail_silently=False,
+        )
+        user = User(email=email,password=password,name=name,type_of_user=type_of_user,otp = otp, otp_verified = False)
+        user.save()
+        return Response({"data":"Otp generated","otp":otp},status.HTTP_200_OK)
+
+@api_view(['POST'])
+def user_verify(request):
+    if "otp" not in request.data or "email" not in request.data:
+        return Response({"data":"otp or email not present"},status.HTTP_400_BAD_REQUEST)
+    otp = request.data['otp']
+    email = request.data['email']
+    if User.objects.filter(email=email,otp=otp).exists():
+        user = User.objects.get(email=email,otp=otp)
+        user.otp=""
+        user.otp_verified = True
+        user.private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15))
+        user.save()
+        user_data = UserSerializer(user).data
+        return Response({"data":"User verified","user":user_data},status.HTTP_200_OK)
+    else:
+        return Response({"data":"Invalid OTP"},status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def user_login(request):
+    if "private_key" in request.data:
+        private_key = request.data['private_key']
+        if User.objects.filter(private_key=private_key).exists():
+            user = User.objects.get(private_key=private_key)
+            user_data = UserSerializer(user).data
+            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+        else:
+            return Response({"data":"Private Key does not exist"},status.HTTP_400_BAD_REQUEST)
+        
+    if "email" not in request.data or "password" not in request.data:
+        return Response({"data":"email or password not present"},status.HTTP_400_BAD_REQUEST)
+    email = request.data['email']
+    password = request.data['password']
+    if User.objects.filter(email=email).exists():
+        user = User.objects.get(email=email)
+        if user.password == password:
+            user_data = UserSerializer(user).data
+            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+        else:
+            return Response({"data":"Wrong password"},status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({"data":"User does not exist"},status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def forgot_password(request):
+    if "email" not in request.data:
+        return Response({"data":"email not present"},status.HTTP_400_BAD_REQUEST)
+    email = request.data['email']
+    if User.objects.filter(email=email).exists():
+        user = User.objects.get(email=email)
+        otp = str(random.randint(100000,999999))
+        subject = "OTP for reset password with Djangofy"
+        message = "Your OTP for reset password with Djangofy is "+otp + ". Please do not share this OTP with anyone."
+        mail_to = [email]
+        mail_from = os.environ.get("EMAIL_HOST_USER")
+        send_mail(
+            subject,
+            message,
+            mail_from,
+            mail_to,
+            fail_silently=False,
+        )
+        user.otp = otp
+        user.save()
+        return Response({"data":"Otp generated","otp":otp},status.HTTP_200_OK)
+    else:
+        return Response({"data":"User does not exist"},status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def reset_password(request):
+    if "otp" not in request.data or "email" not in request.data or "password" not in request.data:
+        return Response({"data":"otp or email or password not present"},status.HTTP_400_BAD_REQUEST)
+    otp = request.data['otp']
+    email = request.data['email']
+    password = request.data['password']
+    if User.objects.filter(email=email,otp=otp).exists():
+        user = User.objects.get(email=email,otp=otp)
+        user.otp=""
+        user.password = password
+        user.save()
+        return Response({"data":"Password reset successfully"},status.HTTP_200_OK)
+    else:
+        return Response({"data":"Invalid OTP"},status.HTTP_400_BAD_REQUEST)
 
 
 '''
