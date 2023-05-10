@@ -15,6 +15,7 @@ import shutil
 from huggingface_hub import HfApi
 import string
 import random
+import requests
 from django.core.mail import send_mail
 
 
@@ -350,6 +351,72 @@ def reset_password(request):
         return Response({"data":"Password reset successfully"},status.HTTP_200_OK)
     else:
         return Response({"data":"Invalid OTP"},status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def github_login(request):
+    client_id = os.environ.get("GITHUB_CLIENT_ID")
+    url = "https://github.com/login/oauth/authorize?client_id="+client_id+"&scope=user,email,repo"
+    return Response({"data":"Github login","url":url},status.HTTP_200_OK)
+
+@api_view(['POST'])
+def github_confirm(request):
+    code = request.data["code"]
+    # Set the client ID, client secret, and authorization code
+    client_id = os.environ.get("GITHUB_CLIENT_ID")
+    client_secret = os.environ.get("GITHUB_CLIENT_SECRET")
+    authorization_code = code
+
+    # Set the headers and data for the request
+    headers = {'Accept': 'application/json'}
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'code': authorization_code
+    }
+
+    # Make a POST request to the GitHub API to get an access token
+    response = requests.post('https://github.com/login/oauth/access_token', headers=headers, data=data)
+    
+    if response.status_code != 200:
+        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+
+    if 'access_token' not in response.json():
+        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+    
+    access_token = response.json()['access_token']
+
+    # Set the headers to include the access token
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    # Make a request to the GitHub API to get the authenticated user's information
+    response = requests.get('https://api.github.com/user', headers=headers)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Get the user's information from the response JSON
+        user_info = response.json()
+        username = user_info['login']
+        email = user_info['email']
+        
+        if User.objects.filter(email=email).exists():
+            user = User.objects.get(email=email)
+            user.github_token = access_token
+            user.email = email
+            user.private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15))
+            user.name = username
+            user.save()
+            user_data = UserSerializer(user).data
+            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+        else:
+            user = User(email=email,name=username,type_of_user="free",otp_verified = True,private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15)),github_token = access_token)
+            user.save()
+            user_data = UserSerializer(user).data
+            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+    else:
+        print(response.status_code)
+        print(response.text)
+        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+
 
 
 '''
