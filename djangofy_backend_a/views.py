@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import os
-from .models import User 
+from .models import User, UserProjects
 from .serializers import UserSerializer
 from .makesettings import CreateSettings
 from .makeurls import CreateUrls
@@ -14,6 +14,10 @@ from .makerequirements import CreateRequirements
 import shutil
 from huggingface_hub import HfApi
 import string
+from github import Github
+import requests
+import os
+
 import random
 import requests
 from django.core.mail import send_mail
@@ -150,10 +154,58 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
 
     return True
 
+def push_to_github(directory,github_access_token,repo_name):
+    
+    # Replace these variables with your own values
+    repo_name = repo_name
+    access_token = github_access_token
+    folder_path = directory
+
+    # Create a Github instance using the access token
+    g = Github(access_token)
+
+    # Create a new repository with the given name
+    user = g.get_user()
+    repo = user.create_repo(repo_name)
+
+    # Print a success message
+    print("Repository successfully created!")
+
+    # Set the local folder to push
+    os.chdir(folder_path)
+
+    # Read the contents of the folder and create a list of file paths
+    file_list = []
+    for root, dirs, files in os.walk("."):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            file_list.append(file_path)
+
+    # Iterate over the file list and push each file to the repository
+    for file_path in file_list:
+        with open(file_path, 'r') as file:
+            content = file.read()
+        file_path = file_path[2:]  # Remove the "./" at the beginning of the file path
+        repo.create_file(file_path, "commit message", content)
+
+    # Print a success message
+    print("Folder successfully pushed to the repository!")
+
 
 # Main Functions
 @api_view(['POST'])
 def getZip(request):
+    if "private_key" not in request.data:
+        return Response({"data":"private_key not present. Please Log User in first"},status.HTTP_400_BAD_REQUEST)
+    
+    private_key = request.data['private_key']
+    if not User.objects.filter(private_key=private_key).exists():
+        return Response({"data":"Invalid private_key"},status.HTTP_400_BAD_REQUEST)
+    user = User.objects.get(private_key=private_key)
+    if not user.otp_verified:
+        return Response({"data":"User not verified"},status.HTTP_400_BAD_REQUEST)
+
+    
     if not "project_name" in request.data:
         return Response({"data":"project_name not present"},status.HTTP_400_BAD_REQUEST)
     if not "apps" in request.data:
@@ -213,6 +265,8 @@ def getZip(request):
         # make a zip of project then remove that project from sandbox and send that zip file
         output_filename = "zipsandbox/"+request.data['project_name']
         dir_name = "sandbox/"+request.data['project_name']
+        if user.github_token:
+            push_to_github(dir_name,user.github_token,request.data['project_name'])
         shutil.make_archive(output_filename, 'zip', dir_name)
         shutil.rmtree(dir_name)
         output_filename = output_filename+".zip"
@@ -232,9 +286,11 @@ def getZip(request):
             repo_type=repo_type,
             token = os.environ.get("HUGGINGFACE_TOKEN")
         )
-        download_link= "https://huggingface.co/datasets/"+str(repo_id)+"/resolve/main/"+str(path_in_repo)
+        download_link= "https://huggingface.co/datasets/"+str(repo_id)+"/resolve/main/"+str(path_in_repo)         
+        project_name = request.data['project_name']
+        UserProjects.objects.create(user=user,project_name=project_name,project_link=download_link,project_data=request.data)
+        
         os.remove(output_filename)
-         
         return Response({"data":"Yes","download_link" : download_link},status.HTTP_200_OK)
     else:
         return Response({"data":"No"},status.HTTP_400_BAD_REQUEST)
@@ -360,62 +416,70 @@ def github_login(request):
 
 @api_view(['POST'])
 def github_confirm(request):
-    code = request.data["code"]
-    # Set the client ID, client secret, and authorization code
-    client_id = os.environ.get("GITHUB_CLIENT_ID")
-    client_secret = os.environ.get("GITHUB_CLIENT_SECRET")
-    authorization_code = code
+    try:
+        code = request.data["code"]
+        # Set the client ID, client secret, and authorization code
+        client_id = os.environ.get("GITHUB_CLIENT_ID")
+        client_secret = os.environ.get("GITHUB_CLIENT_SECRET")
+        authorization_code = code
 
-    # Set the headers and data for the request
-    headers = {'Accept': 'application/json'}
-    data = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'code': authorization_code
-    }
+        # Set the headers and data for the request
+        headers = {'Accept': 'application/json'}
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'code': authorization_code
+        }
 
-    # Make a POST request to the GitHub API to get an access token
-    response = requests.post('https://github.com/login/oauth/access_token', headers=headers, data=data)
-    
-    if response.status_code != 200:
-        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
-
-    if 'access_token' not in response.json():
-        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
-    
-    access_token = response.json()['access_token']
-
-    # Set the headers to include the access token
-    headers = {'Authorization': f'Bearer {access_token}'}
-
-    # Make a request to the GitHub API to get the authenticated user's information
-    response = requests.get('https://api.github.com/user', headers=headers)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Get the user's information from the response JSON
-        user_info = response.json()
-        username = user_info['login']
-        email = user_info['email']
+        # Make a POST request to the GitHub API to get an access token
+        response = requests.post('https://github.com/login/oauth/access_token', headers=headers, data=data)
         
-        if User.objects.filter(email=email).exists():
-            user = User.objects.get(email=email)
-            user.github_token = access_token
-            user.email = email
-            user.private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15))
-            user.name = username
-            user.save()
-            user_data = UserSerializer(user).data
-            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+        if response.status_code != 200:
+            return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+
+        if 'access_token' not in response.json():
+            return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+        
+        access_token = response.json()['access_token']
+
+        # Set the headers to include the access token
+        headers = {'Authorization': f'Bearer {access_token}'}
+
+        # Make a request to the GitHub API to get the authenticated user's information
+        response = requests.get('https://api.github.com/user/emails', headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            user_info = response.json()
+            try:
+                email = user_info[0]['email']
+            except:
+                if "email" in request.data:
+                    email = request.data['email']   
+                else:
+                    return Response({"data":"Email not present"},status.HTTP_400_BAD_REQUEST)
+            
+            if User.objects.filter(email=email).exists():
+                user = User.objects.get(email=email)
+                user.github_token = access_token
+                user.email = email
+                user.otp_verified = True
+                user.private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15))
+                user.save()
+                user_data = UserSerializer(user).data
+                return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+            else:
+                user = User(email=email,type_of_user="free",otp_verified = True,private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15)),github_token = access_token)
+                user.save()
+                user_data = UserSerializer(user).data
+                return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
         else:
-            user = User(email=email,name=username,type_of_user="free",otp_verified = True,private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15)),github_token = access_token)
-            user.save()
-            user_data = UserSerializer(user).data
-            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
-    else:
-        print(response.status_code)
-        print(response.text)
-        return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+            print(response.status_code)
+            print(response.text)
+            return Response({"data":"Invalid code"},status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(e)
+        return Response({"data":"Some Internal Server Error Occurred","error" : str(e)},status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
