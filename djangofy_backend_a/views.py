@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import os
 from .models import User, UserProjects
-from .serializers import UserSerializer
+from .serializers import UserSerializer,UserProjectsSerializer
 from .makesettings import CreateSettings
 from .makeurls import CreateUrls
 from .makeviews import CreateViews
@@ -157,6 +157,8 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
 def push_to_github(directory,github_access_token,repo_name):
     
     # Replace these variables with your own values
+    base_dir = os.getcwd()
+    
     repo_name = repo_name
     access_token = github_access_token
     folder_path = directory
@@ -166,13 +168,20 @@ def push_to_github(directory,github_access_token,repo_name):
 
     # Create a new repository with the given name
     user = g.get_user()
-    repo = user.create_repo(repo_name)
+    try:
+        repo = user.get_repo(repo_name)
+        repo_name = repo_name + str(random.randint(100000,999999))
+        repo = user.create_repo(repo_name)
+    except:
+        # If the repository doesn't exist, create it
+        repo = user.create_repo(repo_name)
 
     # Print a success message
     print("Repository successfully created!")
 
     # Set the local folder to push
     os.chdir(folder_path)
+    
 
     # Read the contents of the folder and create a list of file paths
     file_list = []
@@ -186,10 +195,15 @@ def push_to_github(directory,github_access_token,repo_name):
         with open(file_path, 'r') as file:
             content = file.read()
         file_path = file_path[2:]  # Remove the "./" at the beginning of the file path
+        file_path = file_path.replace("\\","/")
         repo.create_file(file_path, "commit message", content)
 
+    # Delte the local folder
+    os.chdir(base_dir)
+    shutil.rmtree(folder_path)
+
     # Print a success message
-    print("Folder successfully pushed to the repository!")
+    return repo_name
 
 
 # Main Functions
@@ -265,10 +279,8 @@ def getZip(request):
         # make a zip of project then remove that project from sandbox and send that zip file
         output_filename = "zipsandbox/"+request.data['project_name']
         dir_name = "sandbox/"+request.data['project_name']
-        if user.github_token:
-            push_to_github(dir_name,user.github_token,request.data['project_name'])
+        temp_dir_name = dir_name
         shutil.make_archive(output_filename, 'zip', dir_name)
-        shutil.rmtree(dir_name)
         output_filename = output_filename+".zip"
         zip_file = open(output_filename, 'rb')
         zip_file.close()
@@ -291,6 +303,8 @@ def getZip(request):
         UserProjects.objects.create(user=user,project_name=project_name,project_link=download_link,project_data=request.data)
         
         os.remove(output_filename)
+        if user.github_token:
+            push_to_github(temp_dir_name,user.github_token,request.data['project_name'])
         return Response({"data":"Yes","download_link" : download_link},status.HTTP_200_OK)
     else:
         return Response({"data":"No"},status.HTTP_400_BAD_REQUEST)
@@ -349,7 +363,9 @@ def user_login(request):
         if User.objects.filter(private_key=private_key).exists():
             user = User.objects.get(private_key=private_key)
             user_data = UserSerializer(user).data
-            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+            user_projects = UserProjects.objects.filter(user=user)
+            user_projects = UserProjectsSerializer(user_projects,many=True).data
+            return Response({"data":"User logged in","user":user_data,"user_projects":user_projects},status.HTTP_200_OK)
         else:
             return Response({"data":"Private Key does not exist"},status.HTTP_400_BAD_REQUEST)
         
@@ -361,7 +377,9 @@ def user_login(request):
         user = User.objects.get(email=email)
         if user.password == password:
             user_data = UserSerializer(user).data
-            return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+            user_projects = UserProjects.objects.filter(user=user)
+            user_projects = UserProjectsSerializer(user_projects,many=True).data
+            return Response({"data":"User logged in","user":user_data,"user_projects":user_projects},status.HTTP_200_OK)
         else:
             return Response({"data":"Wrong password"},status.HTTP_400_BAD_REQUEST)
     else:
@@ -467,7 +485,9 @@ def github_confirm(request):
                 user.private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15))
                 user.save()
                 user_data = UserSerializer(user).data
-                return Response({"data":"User logged in","user":user_data},status.HTTP_200_OK)
+                user_projects = UserProjects.objects.filter(user=user)
+                user_projects = UserProjectsSerializer(user_projects,many=True).data
+                return Response({"data":"User logged in","user":user_data,"user_projects":user_projects},status.HTTP_200_OK)
             else:
                 user = User(email=email,type_of_user="free",otp_verified = True,private_key = ''.join(random.choices(string.ascii_uppercase +string.digits, k=15)),github_token = access_token)
                 user.save()

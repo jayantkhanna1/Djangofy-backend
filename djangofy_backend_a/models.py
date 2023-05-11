@@ -14,6 +14,6 @@ class User(models.Model):
 
 class UserProjects(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
-    project_link = models.CharField(max_length=100,null=True,blank=True)
-    project_name = models.CharField(max_length=100)
+    project_link = models.CharField(max_length=1000,null=True,blank=True)
+    project_name = models.CharField(max_length=1000)
     project_data = models.JSONField(null=True,blank=True)
