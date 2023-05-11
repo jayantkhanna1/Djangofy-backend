@@ -43,7 +43,7 @@ def createAllFiles(project_name,apps,rest_app):
         for app in apps:
             appname = app["app_name_"+str(i)]
             i+=1
-            os.system("cd sandbox/"+project_name+" && python manage.py startapp "+str(appname))
+            os.system("cd sandbox/"+project_name+" && django-admin startapp "+str(appname))
 
         # Creating static and templates folder
         os.system("cd sandbox/"+project_name+" && mkdir static")
