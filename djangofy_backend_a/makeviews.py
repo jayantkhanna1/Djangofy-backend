@@ -54,7 +54,18 @@ class CreateViews:
             
             if self.celery:
                 file.write("from .tasks import *\n")
-
+            
+            # Need to import boto3 for aws
+            if self.static_backend:
+                if self.static_backend.lower() == "aws":
+                    file.write("import boto3\n")
+                    file.write("from botocore.exceptions import NoCredentialsError\n")
+                elif self.static_backend.lower() == "gcp":
+                    file.write("from google.cloud import storage\n")
+                elif self.static_backend.lower() == "azure":
+                    file.write("from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient\n")
+                else:
+                    pass
 
             file.write("\n")
             file.close()

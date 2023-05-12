@@ -144,7 +144,10 @@ def debug_task(self):
                     AZURE_ACCOUNT_NAME = os.getenv('AZURE_ACCOUNT_NAME')
                     AZURE_ACCOUNT_KEY = os.getenv('AZURE_ACCOUNT_KEY')
                     AZURE_CONTAINER = os.getenv('AZURE_CONTAINER')
+                    AZURE_ENDPOINT_SUFFIX = os.getenv('AZURE_ENDPOINT_SUFFIX', 'core.windows.net')
 
+                    AZURE_STORAGE_CONNECTION_STRING = f"DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix={AZURE_ENDPOINT_SUFFIX}"
+                    
                     # Use the AzureStorage backend for static and media files
                     STATICFILES_STORAGE = 'storages.backends.azure_storage.AzureStorage'
                     DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
@@ -164,7 +167,7 @@ def debug_task(self):
 
                 # Add this data to .env file
                 env_file = open("sandbox/"+self.project_name+"/.env","a")
-                env_file.write("AZURE_ACCOUNT_NAME='' \nAZURE_ACCOUNT_KEY='' \nAZURE_CONTAINER=''")
+                env_file.write("AZURE_ACCOUNT_NAME='' \nAZURE_ACCOUNT_KEY='' \nAZURE_CONTAINER='' \nAZURE_ENDPOINT_SUFFIX='' \n")
             
             elif self.static_backend == "gcp":
                 gcp_data = '''

@@ -11,6 +11,7 @@ from .makemodels import CreateModels
 from .makeserializers import CreateSerializers
 from .makeadmin import CreateAdmin
 from .makerequirements import CreateRequirements
+from .makedocs import CreateDocs
 import shutil
 from huggingface_hub import HfApi
 import string
@@ -150,7 +151,10 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
         return False
     
     # Making documentation
-
+    docs = CreateDocs(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery)
+    ret = docs.makeDocs()
+    if not ret:
+        return False
 
     return True
 
