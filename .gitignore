@@ -1,1 +1,3 @@
 *.env
+djangofy_backend_a/__pycache__
+djangofy_backend_p/__pycache__
