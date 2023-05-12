@@ -205,7 +205,7 @@ send_mail(
                 file.write("## Mobile Integration\n\n")
                 data = '''
 
-                We've got you covered with a pre-configured mobile integration for your project, so no need to fret about setting it up yourself. Simply add the necessary credentials to your .env file, and you're good to go!
+We've got you covered with a pre-configured mobile integration for your project, so no need to fret about setting it up yourself. Simply add the necessary credentials to your .env file, and you're good to go!
 
 To send a message from your project, Client function from from twilio.rest have already been imported for you. You can easily do this by running the following commands in your terminal:
 
