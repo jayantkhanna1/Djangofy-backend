@@ -378,7 +378,7 @@ add.delay(4, 4)
 '''
                 file.write(data)
             
-            file.write("# What do we have to do\n\n")
+            file.write("# What You have to do\n\n")
             data ='''
             
 To get started with a simple project, all you need to do is set the routes in urls.py and write functions in views.py. However, if you want to make your project more complex, you might want to edit other files such as models.py, serializers.py, admin.py, and more. But don't worry, we have already preconfigured these files for you, so you can get started with ease.
