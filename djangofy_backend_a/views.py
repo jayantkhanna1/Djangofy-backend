@@ -158,12 +158,14 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
 
     return True
 
-def push_to_github(directory,github_access_token,repo_name):
+def push_to_github(directory,github_access_token,repo_name,is_admin):
     
     # Replace these variables with your own values
     base_dir = os.getcwd()
+    repo_name = "DJangofy_"+repo_name
+    if is_admin:
+        repo_name = repo_name
     
-    repo_name = repo_name
     access_token = github_access_token
     folder_path = directory
 
@@ -179,7 +181,7 @@ def push_to_github(directory,github_access_token,repo_name):
     except:
         # If the repository doesn't exist, create it
         repo = user.create_repo(repo_name)
-
+    print(repo.url)
     # Print a success message
     print("Repository successfully created!")
 
@@ -207,7 +209,7 @@ def push_to_github(directory,github_access_token,repo_name):
     shutil.rmtree(folder_path)
 
     # Print a success message
-    return repo_name
+    return repo_name,repo.url
 
 
 # Main Functions
@@ -304,12 +306,17 @@ def getZip(request):
         )
         download_link= "https://huggingface.co/datasets/"+str(repo_id)+"/resolve/main/"+str(path_in_repo)         
         project_name = request.data['project_name']
-        UserProjects.objects.create(user=user,project_name=project_name,project_link=download_link,project_data=request.data)
         
         os.remove(output_filename)
+        repo_name = None
+        repo_url = None
         if user.github_token:
-            push_to_github(temp_dir_name,user.github_token,request.data['project_name'])
-        return Response({"data":"Yes","download_link" : download_link},status.HTTP_200_OK)
+            repo_name,repo_url = push_to_github(temp_dir_name,user.github_token,request.data['project_name'],user.admin)
+
+        userproject = UserProjects.objects.create(user=user,project_name=project_name,project_link=download_link,project_data=request.data,github_link=repo_url,github_repo_name=repo_name)
+        userproject.save()
+        userprojectserialized = UserProjectsSerializer(userproject).data
+        return Response({"data":"Success","userproject":userprojectserialized},status.HTTP_200_OK)
     else:
         return Response({"data":"No"},status.HTTP_400_BAD_REQUEST)
 
