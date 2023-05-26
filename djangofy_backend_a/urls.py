@@ -10,4 +10,5 @@ urlpatterns = [
     path('resetPassword',views.reset_password,name='resetPassword'),
     path('githubLogin',views.github_login,name='githubLogin'),
     path('githubConfirm',views.github_confirm,name='githubConfirm'),
+    path('githubCallback',views.github_callback,name='githubCallback'),
 ]
