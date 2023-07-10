@@ -12,6 +12,8 @@ from .makeserializers import CreateSerializers
 from .makeadmin import CreateAdmin
 from .makerequirements import CreateRequirements
 from .makedocs import CreateDocs
+from .makeasgi import CreateAsgi
+from .makeconsumers import CreateConsumers
 import shutil
 from huggingface_hub import HfApi
 import string
@@ -26,7 +28,7 @@ from django.core.mail import send_mail
 
 
 # Helper Functions
-def createAllFiles(project_name,apps,rest_app):
+def createAllFiles(project_name,apps,rest_app, socket):
     try:
         os.system("cd sandbox && django-admin startproject "+project_name)
         
@@ -67,6 +69,9 @@ def createAllFiles(project_name,apps,rest_app):
                 i+=1
                 serializers_file = open("sandbox/"+project_name+"/"+str(appname)+"/serializers.py","w")
                 serializers_file.close()
+        if socket:
+            socket_file = open("sandbox/"+project_name+"/"+str(appname)+"/consumers.py","w")
+            socket_file.close()
 
         # Creating a urls.py file in apps
         i = 1
@@ -81,7 +86,7 @@ def createAllFiles(project_name,apps,rest_app):
         print(e)
         return False  
 
-def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
+def startSandbox(data,email_backend,mobile_backend,static_backend, celery, socket):
 
     # Getting data
     project_name = data['project_name']
@@ -105,12 +110,12 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
             
 
     # Creating all required files
-    ret = createAllFiles(project_name,apps,rest_app)
+    ret = createAllFiles(project_name,apps,rest_app,socket)
     if not ret:
         return False
     
     # Editing settings.py file
-    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery)
+    settings = CreateSettings(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery, socket)
     ret = settings.makeSettings()
 
     # Editing urls.py file in project and apps
@@ -150,11 +155,23 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery):
     if not ret:
         return False
     
+    # making asgi file for socket
+    asgi = CreateAsgi(socket,project_name)
+    asgi = asgi.makeAsgi()
+    if not asgi:
+        return False
+    
+    if socket:
+        consumers = CreateConsumers(socket,apps,project_name)
+        cons = consumers.makeConsumers()
+        if not cons:
+            return False
     # Making documentation
     docs = CreateDocs(project_name,apps,database,rest_app,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery)
     ret = docs.makeDocs()
     if not ret:
         return False
+
 
     return True
 
@@ -279,8 +296,12 @@ def getZip(request):
     celery = None
     if "celery" in request.data and request.data["celery"] :
         celery = request.data['celery']
+    
+    socket = None
+    if "socket" in request.data and request.data["socket"]:
+        socket = request.data['socket']
 
-    ret = startSandbox(request.data,email_backend,mobile_backend,static_backend,celery)
+    ret = startSandbox(request.data,email_backend,mobile_backend,static_backend,celery,socket)
     if ret:
         # make a zip of project then remove that project from sandbox and send that zip file
         output_filename = "zipsandbox/"+request.data['project_name']
@@ -605,14 +626,5 @@ def github_confirm(request):
 - `SmallIntegerField`: `rank = models.SmallIntegerField()`
 - `TextField`: `description = models.TextField()`
 - `TimeField`: `publish_time = models.TimeField()`
-
-'''
-
-
-'''
-in make settings apps are called twice thus resulting in duplicates
-email also made twice
-middleware too
-some loop is running twice for every app check it
 
 '''

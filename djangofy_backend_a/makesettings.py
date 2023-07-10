@@ -2,7 +2,7 @@ import textwrap
 textwrap.indent
 
 class CreateSettings:
-    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery):
+    def __init__(self,project_name,apps,database,rest_framework,template_based,pip_packages,pagination,page_size,email_backend,mobile_backend,static_backend, celery, socket):
         self.project_name = project_name
         self.apps = []
         i=1
@@ -19,6 +19,7 @@ class CreateSettings:
         self.mobile_backend = mobile_backend
         self.static_backend = static_backend
         self.celery = celery
+        self.socket = socket
     
     def checkDatabase(self):
             if self.database.lower() == "sqlite3":
@@ -94,6 +95,8 @@ def debug_task(self):
             preinstalled_apps.append("'rest_framework'")
             preinstalled_apps.append("'django_filters'")
         preinstalled_apps.append("'corsheaders'")
+        if self.socket:
+            preinstalled_apps.append("'channels'")
         installed_Apps = "INSTALLED_APPS = [\n" + ",\n".join(preinstalled_apps) + "\n]"
         settings_data = settings_data.replace(settings_data.split("INSTALLED_APPS = [")[1].split("]")[0],installed_Apps.split("INSTALLED_APPS = [")[1].split("]")[0])
 
@@ -353,7 +356,15 @@ def debug_task(self):
 
             self.create_celery_file()
 
-            
+        if self.socket:
+            socket_str = '''
+                CHANNEL_LAYERS = {
+                    'default': {
+                        'BACKEND': 'channels.layers.InMemoryChannelLayer',  # Use an appropriate backend for production
+                    },
+                }
+            '''
+            settings_data = settings_data + socket_str
         # Replace all data in settings.py
         settings_file = open("sandbox/"+self.project_name+"/"+self.project_name+"/settings.py","w")
         settings_file.write(settings_data)
