@@ -101,6 +101,7 @@ def startSandbox(data,email_backend,mobile_backend,static_backend, celery, socke
     else:
         pip_packages = []
     pagination = False
+    page_size = 0
     if rest_app:
         pagination = data['pagination']
         if pagination:
