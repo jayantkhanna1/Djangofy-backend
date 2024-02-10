@@ -11,4 +11,7 @@ urlpatterns = [
     path('githubLogin',views.github_login,name='githubLogin'),
     path('githubConfirm',views.github_confirm,name='githubConfirm'),
     path('githubCallback',views.github_callback,name='githubCallback'),
+
+    # mail server
+    path('sendMail',views.mail_server,name = "sendMail")
 ]

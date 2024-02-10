@@ -629,3 +629,23 @@ def github_confirm(request):
 - `TimeField`: `publish_time = models.TimeField()`
 
 '''
+
+
+
+# Mail server
+@api_view(['POST'])
+def mail_server(request):
+    reciever = request.data['reciever']
+    message = request.data['message']
+    subject = request.data['subject']
+
+    reciever = reciever.split(",")
+    mail_from = os.environ.get("EMAIL_HOST_USER")
+    send_mail(
+        subject,
+        message,
+        mail_from,
+        reciever,
+        fail_silently=False,
+    )
+    return Response({"data":"Mail Sent"},status.HTTP_200_OK)
